@@ -1,0 +1,16 @@
+# Secret keys
+.env
+
+# Virtual environment
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Chat memory database
+*.db
+
+# Editor / system files
+.vscode/
+.DS_Store
