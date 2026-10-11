@@ -1,12 +1,15 @@
 """
 api.py
-Web API for the Customer Support agent.
+Web API and chat page for the Customer Support agent.
 
+GET  /         -> chat page (static/index.html)
+GET  /health   -> quick check that the API is running
 POST /chat     -> send a customer message, get the agent's reply
 POST /approve  -> manager approves or rejects a waiting refund
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from agents import Runner, SQLiteSession, InputGuardrailTripwireTriggered
 from triage_agent import triage_agent
@@ -62,17 +65,32 @@ def build_response(result, session_id: str) -> ChatResponse:
 
 
 def handle_error(error: Exception):
+    """Turn any problem into a clear web error instead of a crash."""
     if "429" in str(error):
-        raise HTTPException(status_code=429, detail="Daily AI limit reached. Please try again later.")
-    raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
+        raise HTTPException(
+            status_code=429,
+            detail="Daily AI limit reached. Please try again later.",
+        )
+    raise HTTPException(
+        status_code=500,
+        detail="Something went wrong. Please try again.",
+    )
 
 
-# ---------- Endpoints ----------
+# ---------- Pages ----------
 @app.get("/")
 def home():
-    return {"status": "ok", "message": "Customer Support Agent API is running"}
+    """Show the chat page."""
+    return FileResponse("static/index.html")
 
 
+@app.get("/health")
+def health():
+    """Quick check that the API is running."""
+    return {"status": "ok"}
+
+
+# ---------- Chat endpoints ----------
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
@@ -96,7 +114,10 @@ async def chat(request: ChatRequest):
 async def approve(request: ApprovalRequest):
     state = PENDING_APPROVALS.pop(request.session_id, None)
     if state is None:
-        raise HTTPException(status_code=404, detail="No refund is waiting for approval in this session.")
+        raise HTTPException(
+            status_code=404,
+            detail="No refund is waiting for approval in this session.",
+        )
 
     for item in state.get_interruptions():
         if request.approve:
