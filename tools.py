@@ -123,10 +123,25 @@ def reset_password(email: str) -> str:
 
 
 # ------------------------------------------------------------
+# 5. Approval rule: refunds of Rs 5,000 or more need a manager
+# ------------------------------------------------------------
+APPROVAL_LIMIT = 5000
+
+
+async def refund_needs_approval(ctx, params, call_id) -> bool:
+    """Return True if this refund must be approved by a human manager."""
+    clean_id = str(params.get("order_id", "")).strip().upper()
+    order = ORDERS.get(clean_id)
+    if order is None:
+        return False  # the tool itself will say "not found"
+    return order["price"] >= APPROVAL_LIMIT
+
+
+# ------------------------------------------------------------
 # Tool versions for the agents
 # (function_tool reads the name, type hints and docstring above)
 # ------------------------------------------------------------
 get_order_status_tool = function_tool(get_order_status)
 get_order_details_tool = function_tool(get_order_details)
-process_refund_tool = function_tool(process_refund)
+process_refund_tool = function_tool(process_refund, needs_approval=refund_needs_approval)
 reset_password_tool = function_tool(reset_password)
